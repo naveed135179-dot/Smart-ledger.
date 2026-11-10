@@ -167,7 +167,33 @@ function saveBill() {
       }
     }
 
-    const updatedProducts = products.map((p: any) => {
+    const updatedBatches = JSON.parse(
+  localStorage.getItem("smartledger-batches") || "[]"
+);
+
+for (const item of cartItems) {
+  let remaining = Number(item.quantity) || 0;
+
+  const matchingBatches = updatedBatches
+    .filter((b: any) => Number(b.productId) === Number(item.productId))
+    .sort((a: any, b: any) => {
+      if (!a.expiryDate) return 1;
+      if (!b.expiryDate) return -1;
+      return a.expiryDate.localeCompare(b.expiryDate);
+    });
+
+  for (const batch of matchingBatches) {
+    if (remaining <= 0) break;
+
+    const available = Number(batch.remainingQuantity ?? batch.quantity) || 0;
+    const deducted = Math.min(available, remaining);
+
+    batch.remainingQuantity = available - deducted;
+    remaining -= deducted;
+  }
+}
+
+const updatedProducts = products.map((p: any) => {
       const soldQuantity = cartItems
         .filter((item: any) => item.productId === p.id)
         .reduce((sum: number, item: any) => sum + item.quantity, 0)
@@ -265,6 +291,7 @@ function saveBill() {
       localStorage.setItem("smartledger-payments", JSON.stringify(payments))
     }
 
+    localStorage.setItem("smartledger-batches", JSON.stringify(updatedBatches));
     localStorage.setItem("smartledger-products", JSON.stringify(updatedProducts))
     setLastSavedBill(savedBill)
     setMessage("Bill saved and inventory stock updated.")

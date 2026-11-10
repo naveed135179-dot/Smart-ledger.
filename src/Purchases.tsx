@@ -82,7 +82,25 @@ godown: godown.trim(),
       return
     }
 
-    entry.productId = matched.id;
+    
+entry.productId = matched.id;
+
+const batches = JSON.parse(localStorage.getItem('smartledger-batches') || '[]');
+batches.push({
+  id: `${entry.id}-${matched.id}`,
+  purchaseId: entry.id,
+  productId: matched.id,
+  product: matched.name,
+  batchNumber: entry.batchNumber || '',
+  expiryDate: entry.expiryDate || '',
+  godown: entry.godown || 'Main Godown',
+  quantity: entry.quantity,
+  remainingQuantity: entry.quantity,
+  purchaseRate: entry.rate,
+  date: entry.date
+});
+localStorage.setItem('smartledger-batches', JSON.stringify(batches));
+
 
 const updatedProducts = products.map(
       (p: { id: number; stock: number; purchase: number }) =>
