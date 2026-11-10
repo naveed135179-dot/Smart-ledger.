@@ -1,0 +1,91 @@
+:root {
+  font-family: Inter, Arial, sans-serif;
+  color: #172638;
+  background: #f5f7fa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, select, textarea {
+  max-width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+
+/* SMARTLEDGER_REPORTS_PREMIUM_THEME */
+.reports-page {
+  background: radial-gradient(ellipse at top left,#e4f4f3 0%,transparent 38%),
+              linear-gradient(145deg,#f5f8fc,#edf3f8) !important;
+  color: #172b45 !important;
+}
+.reports-page div[style*="box-shadow"] {
+  border-radius: 16px !important;
+  border-color: #dfe8ef !important;
+  box-shadow: 0 5px 20px rgba(16,42,67,.065) !important;
+}
+.reports-page button {
+  border-radius: 11px !important;
+  transition: transform .18s ease,filter .18s ease,box-shadow .18s ease;
+}
+.reports-page button:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 4px 12px rgba(16,42,67,.12);
+}
+.reports-page input,.reports-page select {
+  border: 1px solid #d5e1eb !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: #172b45 !important;
+  outline-color: #0d9488;
+}
+.reports-page table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  overflow: hidden;
+}
+.reports-page th {
+  background: #102a43 !important;
+  color: #fff !important;
+  padding: 13px 12px !important;
+  font-weight: 700 !important;
+}
+.reports-page td {
+  padding: 12px !important;
+  border-bottom: 1px solid #edf1f5 !important;
+}
+.reports-page tbody tr:nth-child(even) td {
+  background: #f6fafc;
+}
+.reports-page h3 {
+  color: #102a43;
+  letter-spacing: -.25px;
+}

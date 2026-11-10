@@ -1,0 +1,107 @@
+import Payments from './Payments'
+import Reports from './Reports'
+import Expenses from './Expenses'
+import Purchases from './Purchases'
+import Suppliers from './Suppliers'
+import Customers from './Customers'
+import Sales from './Sales'
+import Products from './Products'
+import { useState } from 'react'
+import { LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Wallet, BarChart3, Menu, Search } from 'lucide-react'
+import './App.css'
+
+import Ledger from './Ledger';
+import Outstanding from './Outstanding';
+
+const modules = [
+  { name: 'Dashboard', icon: LayoutDashboard },
+  { name: 'Products & Stock', icon: Package },
+  { name: 'Sales & Billing', icon: ShoppingCart },
+  { name: 'Customers', icon: Users },
+  { name: 'Suppliers', icon: Truck },
+  { name: 'Purchases', icon: Receipt },
+  { name: 'Expenses', icon: Wallet },
+  { name: 'Business Reports', icon: BarChart3 },
+  { name: 'Payments', icon: BarChart3 },
+  { name: 'Party Ledger', icon: BarChart3 },
+  { name: 'Outstanding', icon: BarChart3 },
+]
+
+export default function App() {
+  const [active, setActive] = useState('Dashboard')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  return (
+    <div className="app">
+      <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>
+        <h2>Smart<span>Ledger</span></h2>
+        <p className="subtitle">YOUR BUSINESS, ORGANIZED</p>
+        {modules.map(({ name, icon: Icon }) => (
+          <button key={name} className={active === name ? 'nav active' : 'nav'} onClick={() => { setActive(name); setMenuOpen(false) }}>
+            <Icon size={19} /> {name}
+          </button>
+        ))}
+        <p className="sidebar-foot">SmartLedger • Business Edition</p>
+      </aside>
+
+      <main className="main">
+        <header>
+          <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}><Menu /></button>
+          <div><small>MY BUSINESS</small><h2>{active}</h2></div>
+          <div className="search"><Search size={18} /><span>Search...</span></div>
+        </header>
+
+        {active === 'Products & Stock' ? (
+          <Products />
+        ) : active === 'Sales & Billing' ? (
+          <Sales />
+        ) : active === 'Customers' ? (
+          <Customers />
+        ) : active === 'Suppliers' ? (
+      <Suppliers />
+    ) : active === 'Purchases' ? (
+      <Purchases />
+    ) : active === 'Expenses' ? (
+      <Expenses />
+    ) : active === 'Business Reports' ? (
+      <Reports />
+    ) : active === 'Payments' ? (
+      <Payments />
+    ) : active === 'Party Ledger' ? (
+      <Ledger />
+    )
+        ) : active === 'Outstanding' ? (
+          <Outstanding />
+        ) : (
+        <>
+        <section className="welcome">
+          <div><small>BUSINESS OVERVIEW</small><h1>Welcome to SmartLedger</h1><p>Your Business. Your Numbers. Your Growth.</p></div>
+        </section>
+
+        <section className="stats">
+          <article><span>Today's Sales</span><strong>₹0.00</strong><small>Sales recorded today</small></article>
+          <article><span>Outstanding Receivables</span><strong>₹0.00</strong><small>Customer balances due</small></article>
+          <article><span>Supplier Payables</span><strong>₹0.00</strong><small>Payments to suppliers</small></article>
+          <article><span>Stock Items</span><strong>0</strong><small>Products in inventory</small></article>
+        </section>
+
+        <section className="section">
+          <h3>Business Management</h3>
+          <p className="muted">Choose a module to get started.</p>
+          <div className="modules">
+            {modules.map(({ name, icon: Icon }) => (
+              <button key={name} className="module" onClick={() => setActive(name)}>
+                <span className="icon"><Icon size={23} /></span>
+                <strong>{name}</strong>
+                <small>{name === 'Dashboard' ? 'Business summary' : 'Open ' + name.toLowerCase()}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+        <footer>SmartLedger • Built for your business</footer>
+        </>
+        )}
+      </main>
+    </div>
+  )
+}

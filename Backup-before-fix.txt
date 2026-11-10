@@ -1,0 +1,105 @@
+import { useState } from 'react';
+
+export default function Backup() {
+  const [message, setMessage] = useState('');
+
+  const downloadBackup = () => {
+    const data: Record<string, string> = {};
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('smartledger-')) {
+        data[key] = localStorage.getItem(key) || '';
+      }
+    }
+
+    const backup = {
+      app: 'SmartLedger',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: 'application/json'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'SmartLedger-Backup.json';
+    link.click();
+    URL.revokeObjectURL(url);
+
+    setMessage('Backup downloaded successfully.');
+  };
+
+  const restoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const backup = JSON.parse(await file.text());
+
+      if (
+        backup.app !== 'SmartLedger' ||
+        !backup.data ||
+        typeof backup.data !== 'object' ||
+        Array.isArray(backup.data)
+      ) {
+        throw new Error('Invalid SmartLedger backup file.');
+      }
+
+      const entries = Object.entries(backup.data) as [string, string][];
+
+      if (
+        entries.length === 0 ||
+        entries.some(([key, value]) =>
+          !key.startsWith('smartledger-') || typeof value !== 'string'
+        )
+      ) {
+        throw new Error('Backup data is invalid.');
+      }
+
+      if (!window.confirm('Restore this backup? Current SmartLedger data will be replaced.')) {
+        return;
+      }
+
+      const oldKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('smartledger-')) oldKeys.push(key);
+      }
+
+      oldKeys.forEach(key => localStorage.removeItem(key));
+      entries.forEach(([key, value]) => localStorage.setItem(key, value));
+
+      setMessage('Backup restored successfully. Refresh the app.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not restore backup.');
+    }
+
+    event.target.value = '';
+  };
+
+  return (
+    <div style={{ padding: 20, maxWidth: 650 }}>
+      <h2>Backup & Restore</h2>
+      <p>Protect your SmartLedger business data.</p>
+
+      <section style={{ padding: 18, border: '1px solid #ddd', borderRadius: 10, marginBottom: 18 }}>
+        <h3>Download Backup</h3>
+        <p>Save all SmartLedger business records to a JSON file.</p>
+        <button onClick={downloadBackup}>Download Backup</button>
+      </section>
+
+      <section style={{ padding: 18, border: '1px solid #ddd', borderRadius: 10 }}>
+        <h3>Restore Backup</h3>
+        <p>Restore your records from a previous SmartLedger backup.</p>
+        <input type="file" accept=".json,application/json" onChange={restoreBackup} />
+      </section>
+
+      {message && <p style={{ marginTop: 18 }}>{message}</p>}
+    </div>
+  );
+}
