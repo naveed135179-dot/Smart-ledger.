@@ -1,6 +1,10 @@
 import { useState } from 'react'
 
 type Purchase = {
+  productId?: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  godown?: string;
   id: number
   supplier: string
   invoice: string
@@ -29,6 +33,11 @@ export default function Purchases() {
   const [rate, setRate] = useState('')
   const [paid, setPaid] = useState('0')
 
+const [batchNumber, setBatchNumber] = useState('')
+const [expiryDate, setExpiryDate] = useState('')
+const [godown, setGodown] = useState('Main Godown')
+
+
   const total = Number(quantity || 0) * Number(rate || 0)
 
   function savePurchase(e: React.FormEvent) {
@@ -48,6 +57,11 @@ export default function Purchases() {
       invoice: invoice.trim(),
       date,
       product: product.trim(),
+productId: 0,
+batchNumber: batchNumber.trim(),
+expiryDate,
+godown: godown.trim(),
+
       quantity: Number(quantity),
       rate: Number(rate),
       total,
@@ -68,7 +82,9 @@ export default function Purchases() {
       return
     }
 
-    const updatedProducts = products.map(
+    entry.productId = matched.id;
+
+const updatedProducts = products.map(
       (p: { id: number; stock: number; purchase: number }) =>
         p.id === matched.id
           ? { ...p, stock: Number(p.stock) + Number(quantity), purchase: Number(rate) }
@@ -119,7 +135,16 @@ export default function Purchases() {
         <label>Product
           <input required value={product} onChange={e => setProduct(e.target.value)} />
         </label>
-        <label>Quantity
+        <label>Batch Number
+<input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} />
+</label>
+<label>Expiry Date
+<input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+</label>
+<label>Godown
+<input value={godown} onChange={e => setGodown(e.target.value)} />
+</label>
+<label>Quantity
           <input required type="number" min="0.01" step="any"
             value={quantity} onChange={e => setQuantity(e.target.value)} />
         </label>
@@ -145,16 +170,16 @@ export default function Purchases() {
         <table style={{ width: '100%', background: 'white', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th>Date</th><th>Supplier</th><th>Invoice</th>
-            <th>Product</th><th>Qty</th><th>Total</th><th>Due</th>
+            <th>Product</th><th>Batch</th><th>Expiry</th><th>Godown</th><th>Qty</th><th>Total</th><th>Due</th>
           </tr></thead>
           <tbody>
             {purchases.map(p => <tr key={p.id}>
               <td>{p.date}</td><td>{p.supplier}</td><td>{p.invoice || '—'}</td>
-              <td>{p.product}</td><td>{p.quantity}</td>
+              <td>{p.product}</td><td>{p.batchNumber || '-'}</td><td>{p.expiryDate || '-'}</td><td>{p.godown || '-'}</td><td>{p.quantity}</td>
               <td>{money(p.total)}</td><td>{money(p.total - p.paid)}</td>
             </tr>)}
             {!purchases.length && <tr>
-              <td colSpan={7} style={{ textAlign: 'center', padding: 20 }}>
+              <td colSpan={10} style={{ textAlign: 'center', padding: 20 }}>
                 No purchases recorded yet.
               </td>
             </tr>}
