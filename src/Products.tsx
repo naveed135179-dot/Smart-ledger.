@@ -162,7 +162,66 @@ setGstRate('0')
         }}>Add Product</button>
       </form>
 
-      <h2>Inventory Summary</h2>
+      <h2>Expiry & Batch Management</h2>
+{(() => {
+  const batches = JSON.parse(localStorage.getItem('smartledger-batches') || '[]');
+  const today = new Date().toISOString().slice(0, 10);
+  const limit = new Date();
+  limit.setDate(limit.getDate() + 30);
+  const limitDate = limit.toISOString().slice(0, 10);
+  const active = batches.filter((b: any) => Number(b.remainingQuantity ?? b.quantity) > 0);
+  const expired = active.filter((b: any) => b.expiryDate && b.expiryDate < today);
+  const expiring = active.filter((b: any) => b.expiryDate && b.expiryDate >= today && b.expiryDate <= limitDate);
+  const remaining = active.reduce((sum: number, b: any) => sum + Number(b.remainingQuantity ?? b.quantity), 0);
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,margin:'12px 0 22px'}}>
+      <div><strong>Expired batches</strong><h2>{expired.length}</h2></div>
+      <div><strong>Expiring within 30 days</strong><h2>{expiring.length}</h2></div>
+      <div><strong>Remaining batch stock</strong><h2>{remaining}</h2></div>
+      <div style={{gridColumn:'1 / -1',overflowX:'auto'}}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr><th>Product</th><th>Batch</th><th>Expiry</th><th>Godown</th><th>Remaining</th></tr></thead>
+          <tbody>
+            {active.map((b: any) => (
+              <tr key={b.id}>
+                <td>{b.product}</td><td>{b.batchNumber || '-'}</td>
+                <td>{b.expiryDate || 'Not set'}</td><td>{b.godown || 'Main Godown'}</td>
+                <td>{Number(b.remainingQuantity ?? b.quantity)}</td>
+              </tr>
+            ))}
+            {!active.length && <tr><td colSpan={5}>No batch records yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+})()}
+<h2>Godown-wise Stock Summary</h2>
+{(() => {
+  const batches = JSON.parse(localStorage.getItem('smartledger-batches') || '[]');
+  const totals = batches.reduce((acc: Record<string, number>, b: any) => {
+    const quantity = Number(b.remainingQuantity ?? b.quantity ?? 0);
+    if (quantity > 0) {
+      const name = (b.godown || 'Main Godown').trim();
+      acc[name] = (acc[name] || 0) + quantity;
+    }
+    return acc;
+  }, {});
+  const godowns = Object.entries(totals);
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:12,margin:'12px 0 22px'}}>
+      {godowns.map(([name, quantity]) => (
+        <div key={name} style={{padding:16,border:'1px solid #dddccf',borderRadius:12,background:'#fbf9f3'}}>
+          <strong>{name}</strong>
+          <h2>{Number(quantity)}</h2>
+          <span>Units in stock</span>
+        </div>
+      ))}
+      {!godowns.length && <p>No godown stock records yet.</p>}
+    </div>
+  );
+})()}
+<h2>Inventory Summary</h2>
       <p>Products: {products.length} &nbsp; | &nbsp;
         Stock value at purchase price: {money(
           products.reduce((sum, p) => sum + p.purchase * p.stock, 0)
@@ -175,13 +234,27 @@ setGstRate('0')
         <table style={{ width: '100%', background: 'white', borderCollapse: 'collapse' }}>
           <thead><tr>
             <th>Product</th><th>Code</th><th>Purchase</th>
-            <th>Selling</th><th>Stock</th><th>Unit</th><th>Actions</th>
+            <th>Selling</th><th>Stock</th><th>Stock Status</th><th>Unit</th><th>Actions</th>
           </tr></thead>
           <tbody>
             {filtered.map(p => <tr key={p.id}>
               <td>{p.name}</td><td>{p.code || '—'}</td>
               <td>{money(p.purchase)}</td><td>{money(p.selling)}</td>
-              <td>{p.stock}</td><td>{p.unit}</td>
+              <td>{p.stock}</td>
+<td>
+<span style={{
+  display: 'inline-block',
+  padding: '5px 10px',
+  borderRadius: 20,
+  fontSize: 12,
+  fontWeight: 700,
+  background: Number(p.stock) <= 0 ? '#fce8e6' : Number(p.stock) <= 5 ? '#fff1d6' : '#e3eadf',
+  color: Number(p.stock) <= 0 ? '#b42318' : Number(p.stock) <= 5 ? '#946200' : '#315b46'
+}}>
+{Number(p.stock) <= 0 ? 'Out of Stock' : Number(p.stock) <= 5 ? 'Low Stock' : 'In Stock'}
+</span>
+</td>
+<td>{p.unit}</td>
               <td>
                 <button type="button" onClick={() => editProduct(p.id)}>Edit</button>{' '}
                 <button type="button" onClick={() => adjustStock(p.id)}>Adjust stock</button>{' '}
