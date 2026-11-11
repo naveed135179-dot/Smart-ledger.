@@ -7,6 +7,7 @@ import Suppliers from './Suppliers'
 import Customers from './Customers'
 import Sales from './Sales'
 import Products from './Products'
+import GodownTransfers from './GodownTransfers'
 import { useState } from 'react'
 import { LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Wallet, BarChart3, Menu, Search, Settings } from 'lucide-react'
 import './App.css'
@@ -19,6 +20,7 @@ import SettingsScreen from './Settings';
 const modules = [
   { name: 'Dashboard', icon: LayoutDashboard },
   { name: 'Products & Stock', icon: Package },
+{ name: 'Godown Transfers', icon: Package },
   { name: 'Bulk Action', icon: Package },
   { name: 'Sales & Billing', icon: ShoppingCart },
   { name: 'Customers', icon: Users },
@@ -139,7 +141,9 @@ const homeResults = homeSearch.trim() ? [
 )}
 
 
-        {active === 'Bulk Action' ? (<BulkAction />) : active === 'Products & Stock' ? (
+        {active === 'Bulk Action' ? (<BulkAction />) : active === 'Godown Transfers' ? (
+<GodownTransfers />
+): active === 'Products & Stock' ? (
           <Products />
         ) : active === 'Sales & Billing' ? (
           <Sales />
