@@ -321,7 +321,7 @@ export default function BulkAction() {
 };
 
 return (
-    <div style={{ padding: 18, maxWidth: 1100, margin: 'auto', color: '#183044' }}>
+    <div className="bulk-action-card">
       <h2>Bulk Action</h2>
       <p>Manage multiple products using your existing SmartLedger inventory.</p>
 

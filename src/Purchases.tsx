@@ -1,3 +1,4 @@
+import { postJournal } from './accounting';
 import { useState } from 'react'
 
 type Purchase = {
@@ -14,6 +15,7 @@ type Purchase = {
   rate: number
   total: number
   paid: number
+paymentMethod?: string
 }
 
 export default function Purchases() {
@@ -32,6 +34,7 @@ export default function Purchases() {
   const [quantity, setQuantity] = useState('')
   const [rate, setRate] = useState('')
   const [paid, setPaid] = useState('0')
+const [paymentMethod, setPaymentMethod] = useState('Cash')
 
 const [batchNumber, setBatchNumber] = useState('')
 const [expiryDate, setExpiryDate] = useState('')
@@ -110,7 +113,30 @@ const updatedProducts = products.map(
     )
 
     const updated = [...purchases, entry]
-    localStorage.setItem('smartledger-purchases', JSON.stringify(updated))
+    
+const purchaseId = String(entry.id);
+
+const purchaseGstRate = Math.max(0, Number(matched.gstRate) || 0);
+const purchaseGstAmount = purchaseGstRate > 0
+  ? Number((entry.total * purchaseGstRate / (100 + purchaseGstRate)).toFixed(2))
+  : 0;
+const purchaseBaseAmount = Number((entry.total - purchaseGstAmount).toFixed(2));
+
+postJournal("Purchase Invoice", purchaseId, entry.date, "Purchase invoice " + (entry.invoice || purchaseId), [
+  { account: "Inventory / Stock", debit: purchaseBaseAmount, credit: 0 },
+  { account: "Input GST", debit: purchaseGstAmount, credit: 0 },
+  { account: "Supplier Payables", debit: 0, credit: Number(entry.total) || 0 }
+]);
+
+if (Number(entry.paid) > 0) {
+  const purchasePaymentAccount = entry.paymentMethod === "Cash" ? "Cash in Hand" : "Bank Account";
+  postJournal("Purchase Payment", purchaseId + "-payment", entry.date, "Payment against purchase " + (entry.invoice || purchaseId), [
+    { account: "Supplier Payables", debit: Number(entry.paid), credit: 0 },
+    { account: purchasePaymentAccount, debit: 0, credit: Number(entry.paid) }
+  ]);
+}
+
+localStorage.setItem('smartledger-purchases', JSON.stringify(updated))
     localStorage.setItem('smartledger-products', JSON.stringify(updatedProducts))
     setPurchases(updated)
 
@@ -170,7 +196,14 @@ const updatedProducts = products.map(
           <input required type="number" min="0" step="0.01"
             value={rate} onChange={e => setRate(e.target.value)} />
         </label>
-        <label>Amount paid (₹)
+        <label>Payment Method
+<select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+<option>Cash</option>
+<option>Bank</option>
+<option>UPI</option>
+</select>
+</label>
+<label>Amount paid (₹)
           <input type="number" min="0" step="0.01"
             value={paid} onChange={e => setPaid(e.target.value)} />
         </label>

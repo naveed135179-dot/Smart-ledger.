@@ -1,3 +1,4 @@
+import { migrateLegacyTransactions } from './accounting';
 import { useState } from 'react'
 
 type BusinessSettings = {
@@ -25,6 +26,22 @@ const defaults: BusinessSettings = {
 }
 
 export default function Settings() {
+  const [migrationResult, setMigrationResult] = useState<string>('');
+
+  function runHistoricalMigration() {
+    const confirmed = window.confirm(
+      'Run the one-time historical accounting migration? Existing journal entries will be preserved. Please ensure you have a backup first.'
+    );
+    if (!confirmed) return;
+
+    const result = migrateLegacyTransactions();
+    setMigrationResult(
+      result.alreadyCompleted
+        ? 'Migration was already completed. No records were changed.'
+        : `Migration complete: ${result.migrated} entries added, ${result.skipped} skipped, ${result.failed} failed.`
+    );
+  }
+
   const [data, setData] = useState<BusinessSettings>(() => {
     try {
       return { ...defaults, ...JSON.parse(localStorage.getItem('smartledger-settings') || '{}') }
@@ -97,7 +114,17 @@ export default function Settings() {
         {saved && <p className="settings-success">Settings saved successfully.</p>}
       </form>
 
-      <div className="settings-about">
+      
+<div style={{ marginTop: 24, padding: 18, border: '1px solid #dddccf', borderRadius: 12 }}>
+  <h3>Historical Accounting Migration</h3>
+  <p>Import older sales, purchases, payments and expenses into the accounting journal. Make a backup before running this one-time operation.</p>
+  <button type="button" className="settings-save" onClick={runHistoricalMigration}>
+    Run Historical Migration
+  </button>
+  {migrationResult && <p role="status">{migrationResult}</p>}
+</div>
+
+<div className="settings-about">
         <h3>About SmartLedger</h3>
         <strong>SmartLedger</strong>
         <p>Your Business. Your Numbers. Your Growth.</p>

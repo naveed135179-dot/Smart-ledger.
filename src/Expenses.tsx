@@ -1,3 +1,4 @@
+import { postJournal } from './accounting';
 import { useState } from 'react'
 
 type Expense = {
@@ -45,7 +46,19 @@ export default function Expenses() {
     }
 
     const updated = [...expenses, entry]
-    localStorage.setItem('smartledger-expenses', JSON.stringify(updated))
+    
+const expenseCreditAccount = payment === "Cash"
+  ? "Cash in Hand"
+  : payment === "Credit"
+    ? "Supplier Payables"
+    : "Bank Account";
+
+postJournal("Expense", String(entry.id), entry.date, entry.description, [
+  { account: "Shop Expenses", debit: Number(entry.amount), credit: 0 },
+  { account: expenseCreditAccount, debit: 0, credit: Number(entry.amount) }
+]);
+
+localStorage.setItem('smartledger-expenses', JSON.stringify(updated))
     setExpenses(updated)
     setDescription('')
     setAmount('')

@@ -1,3 +1,8 @@
+import BalanceSheet from './BalanceSheet';
+import TrialBalance from './TrialBalance';
+import ChartOfAccounts from './ChartOfAccounts';
+import DayBook from './DayBook';
+import CashBook from './CashBook';
 import BulkAction from './BulkAction';
 import Payments from './Payments'
 import Reports from './Reports'
@@ -8,8 +13,21 @@ import Customers from './Customers'
 import Sales from './Sales'
 import Products from './Products'
 import GodownTransfers from './GodownTransfers'
-import { useState } from 'react'
-import { LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Wallet, BarChart3, Menu, Search, Settings } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { App as CapacitorApp } from '@capacitor/app';import { LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Wallet, BarChart3, Menu, Search, Settings } from 'lucide-react'
 import './App.css'
 
 import Ledger from './Ledger';
@@ -27,6 +45,11 @@ const modules = [
   { name: 'Suppliers', icon: Truck },
   { name: 'Purchases', icon: Receipt },
   { name: 'Expenses', icon: Wallet },
+    { name: 'Cash Book', icon: Wallet },
+    { name: 'Day Book', icon: BarChart3 },
+  { name: 'Chart of Accounts', icon: BarChart3 },
+  { name: 'Trial Balance', icon: BarChart3 },
+  { name: 'Balance Sheet', icon: BarChart3 },
   { name: 'Business Reports', icon: BarChart3 },
   { name: 'Payments', icon: BarChart3 },
   { name: 'Party Ledger', icon: BarChart3 },
@@ -47,7 +70,42 @@ function readDashboardData(key: string): any[] {
 export default function App() {
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
+
 const [homeSearch, setHomeSearch] = useState('')
+
+useEffect(() => {
+  let listener: { remove: () => Promise<void> } | undefined;
+  let disposed = false;
+
+  void CapacitorApp.addListener('backButton', () => {
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
+
+    if (active !== 'Dashboard') {
+      setActive('Dashboard');
+      setHomeSearch('');
+      return;
+    }
+
+    if (window.confirm('Do you want to exit SmartLedger?')) {
+      void CapacitorApp.exitApp();
+    }
+  }).then(handle => {
+    if (disposed) {
+      void handle.remove();
+    } else {
+      listener = handle;
+    }
+  });
+
+  return () => {
+    disposed = true;
+    if (listener) void listener.remove();
+  };
+}, [active, menuOpen]);
+
 
 const homeResults = homeSearch.trim() ? [
   ...JSON.parse(localStorage.getItem('smartledger-products') || '[]')
@@ -104,7 +162,118 @@ const homeResults = homeSearch.trim() ? [
     return sum + Number(s.openingBalance || 0) + due - paid;
   }, 0);
 
-  const dashboardMoney = (n: number) =>
+  
+const expenses = readDashboardData('smartledger-expenses');
+
+const stockStatusData = [
+  { name: 'In Stock', value: products.filter((p: any) => Number(p.stock) >= 5).length, color: '#287A55' },
+  { name: 'Low Stock', value: products.filter((p: any) => Number(p.stock) > 0 && Number(p.stock) < 5).length, color: '#D6AE62' },
+  { name: 'Out of Stock', value: products.filter((p: any) => Number(p.stock) <= 0).length, color: '#D96C61' }
+];
+
+const dashboardTotalPurchases = purchases.reduce(
+  (sum: number, item: any) => sum + Number(item.total || 0), 0
+);
+const dashboardTotalExpenses = expenses.reduce(
+  (sum: number, item: any) => sum + Number(item.amount || 0), 0
+);
+const dashboardGrossProfit = bills.reduce((sum: number, bill: any) => {
+  const items = Array.isArray(bill.items) ? bill.items : [];
+  if (items.length > 0) {
+    return sum + items.reduce((itemSum: number, item: any) => {
+      const quantity = Number(item.quantity || 0);
+      const cost = Number(item.purchasePrice ?? bill.purchasePrice ?? 0);
+      const revenue = Number(item.taxableValue ?? item.total ?? (Number(item.price || 0) * quantity));
+      return itemSum + (cost > 0 ? revenue - cost * quantity : 0);
+    }, 0);
+  }
+  const cost = Number(bill.purchasePrice || 0) * Number(bill.quantity || 0);
+  const revenue = Number(bill.taxableValue ?? (Number(bill.total || 0) - Number(bill.gstAmount || 0)));
+  return sum + (cost > 0 ? revenue - cost : 0);
+}, 0);
+
+
+
+const dashboardMonthTotal = (records: any[], offset: number) => {
+  const target = new Date();
+  target.setDate(1);
+  target.setMonth(target.getMonth() - offset);
+
+  return records.reduce((sum: number, item: any) => {
+    const date = new Date(item.date);
+    return sum + (
+      !isNaN(date.getTime()) &&
+      date.getFullYear() === target.getFullYear() &&
+      date.getMonth() === target.getMonth()
+        ? Number(item.total || 0)
+        : 0
+    );
+  }, 0);
+};
+
+const currentMonthSales = dashboardMonthTotal(bills, 0);
+const previousMonthSales = dashboardMonthTotal(bills, 1);
+const currentMonthPurchases = dashboardMonthTotal(purchases, 0);
+const previousMonthPurchases = dashboardMonthTotal(purchases, 1);
+
+const dashboardChange = (current: number, previous: number) =>
+  previous === 0
+    ? current > 0 ? 100 : 0
+    : ((current - previous) / previous) * 100;
+
+const chartData = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date();
+  date.setDate(date.getDate() - (6 - index));
+  const key = date.toISOString().slice(0, 10);
+
+  const totalForDate = (records: any[]) =>
+    records.reduce((sum: number, item: any) => {
+      const itemDate = new Date(item.date);
+      return sum + (
+        !isNaN(itemDate.getTime()) &&
+        itemDate.toISOString().slice(0, 10) === key
+          ? Number(item.total || item.amount || 0)
+          : 0
+      );
+    }, 0);
+
+  return {
+    day: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+    sales: totalForDate(bills),
+    purchases: totalForDate(purchases)
+  };
+});
+
+const recentActivities = [
+  ...bills.map((item: any) => ({
+    type: 'Sale',
+    party: item.customer || 'Walk-in Customer',
+    date: item.date,
+    amount: Number(item.total || 0)
+  })),
+  ...purchases.map((item: any) => ({
+    type: 'Purchase',
+    party: item.supplier || 'Supplier',
+    date: item.date,
+    amount: Number(item.total || 0)
+  })),
+  ...payments.map((item: any) => ({
+    type: item.type || 'Payment',
+    party: item.party || 'Business',
+    date: item.date,
+    amount: Number(item.amount || 0)
+  })),
+  ...expenses.map((item: any) => ({
+    type: 'Expense',
+    party: item.category || item.description || 'Shop Expense',
+    date: item.date,
+    amount: Number(item.amount || 0)
+  }))
+].sort((a, b) =>
+  new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+).slice(0, 8);
+
+const dashboardMoney = (n: number) =>
     '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   return (
@@ -119,6 +288,15 @@ const homeResults = homeSearch.trim() ? [
         ))}
         <p className="sidebar-foot">SmartLedger • Business Edition</p>
       </aside>
+
+{menuOpen && (
+  <button
+    className="sidebar-overlay"
+    aria-label="Close navigation menu"
+    onClick={() => setMenuOpen(false)}
+  />
+)}
+
 
       <main className="main">
         <header>
@@ -155,6 +333,16 @@ const homeResults = homeSearch.trim() ? [
       <Purchases />
     ) : active === 'Expenses' ? (
       <Expenses />
+): active === 'Cash Book' ? (
+<CashBook />
+): active === 'Balance Sheet' ? (
+<BalanceSheet />
+): active === 'Trial Balance' ? (
+<TrialBalance />
+): active === 'Chart of Accounts' ? (
+<ChartOfAccounts />
+): active === 'Day Book' ? (
+<DayBook />
     ) : active === 'Business Reports' ? (
       <Reports />
     ) : active === 'Payments' ? (
@@ -179,9 +367,176 @@ const homeResults = homeSearch.trim() ? [
 
 <section className="dashboard-metrics">
   <article><span>₹</span><small>TODAY'S SALES</small><strong>{dashboardMoney(todaySales)}</strong><p>Sales recorded today</p></article>
-  <article><span>↗</span><small>TO COLLECT</small><strong>{dashboardMoney(receivables)}</strong><p>Outstanding from customers</p></article>
-  <article><span>↙</span><small>TO PAY</small><strong>{dashboardMoney(payables)}</strong><p>Outstanding to suppliers</p></article>
+  <article><span>↗</span><small>TOTAL PURCHASES</small><strong>{dashboardMoney(dashboardTotalPurchases)}</strong><p>Recorded purchase invoices</p></article>
+  <article><span>₹</span><small>GROSS PROFIT</small><strong>{dashboardMoney(dashboardGrossProfit)}</strong><p>Sales less recorded item costs</p></article>
+  <article><span>↙</span><small>EXPENSES</small><strong>{dashboardMoney(dashboardTotalExpenses)}</strong><p>Recorded shop expenses</p></article>
+  <article><span>↓</span><small>TO COLLECT</small><strong>{dashboardMoney(receivables)}</strong><p>Outstanding from customers</p></article>
+  <article><span>↑</span><small>TO PAY</small><strong>{dashboardMoney(payables)}</strong><p>Outstanding to suppliers</p></article>
   <article><span>▦</span><small>STOCK ITEMS</small><strong>{products.length}</strong><p>Products in inventory</p></article>
+</section>
+
+
+<section className="dashboard-insights">
+  <div className="dashboard-chart-card">
+    <div className="dashboard-heading">
+      <small>LAST 7 DAYS</small>
+      <h2>Business Overview</h2>
+      <p>Sales compared with purchases.</p>
+    </div>
+    <div className="dashboard-chart">
+      <ResponsiveContainer width="100%" height={280}>
+        <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#287A55" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#287A55" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="purchaseGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#659BC5" stopOpacity={0.24} />
+              <stop offset="95%" stopColor="#659BC5" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="day" />
+          <YAxis />
+          <Tooltip formatter={(value: any) => dashboardMoney(Number(value))} />
+          <Legend />
+          <Area type="monotone" dataKey="sales" name="Sales" stroke="#287A55" fill="url(#salesGradient)" strokeWidth={3} />
+          <Area type="monotone" dataKey="purchases" name="Purchases" stroke="#659BC5" fill="url(#purchaseGradient)" strokeWidth={3} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+
+  <div className="dashboard-activity-card">
+    <div className="dashboard-heading">
+      <small>RECENT TRANSACTIONS</small>
+      <h2>Recent Activities</h2>
+      <p>Your latest business entries.</p>
+    </div>
+    <div className="dashboard-activity-list">
+      {recentActivities.length === 0 ? (
+        <p className="dashboard-empty">No recent transactions yet.</p>
+      ) : recentActivities.map((item, index) => (
+        <div className="dashboard-activity-item" key={`${item.type}-${item.date}-${index}`}>
+          <div>
+            <strong>{item.type}</strong>
+            <small>{item.party} · {item.date || 'No date'}</small>
+          </div>
+          <b>₹{dashboardMoney(item.amount)}</b>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section className="dashboard-monthly-performance">
+  <div className="dashboard-heading">
+    <small>MONTHLY ANALYSIS</small>
+    <h2>Business Performance</h2>
+    <p>This month compared with last month.</p>
+  </div>
+  <div className="monthly-performance-grid">
+    {[
+      { name: 'Sales', current: currentMonthSales, previous: previousMonthSales },
+      { name: 'Purchases', current: currentMonthPurchases, previous: previousMonthPurchases }
+    ].map((item) => {
+      const change = dashboardChange(item.current, item.previous);
+      return (
+        <div className="monthly-performance-item" key={item.name}>
+          <strong>{item.name}</strong>
+          <b>{dashboardMoney(item.current)}</b>
+          <small>Last month: {dashboardMoney(item.previous)}</small>
+          <span className={change >= 0 ? 'performance-up' : 'performance-down'}>
+            {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(1)}% {change >= 0 ? 'increase' : 'decrease'}
+          </span>
+        </div>
+      );
+    })}
+  </div>
+</section>
+
+<section className="dashboard-stock-status">
+  <div className="dashboard-heading">
+    <small>INVENTORY HEALTH</small>
+    <h2>Stock Status</h2>
+    <p>Current availability across your products.</p>
+  </div>
+  <div className="stock-status-content">
+    <div className="stock-status-chart">
+      <ResponsiveContainer width="100%" height={230}>
+        <PieChart>
+          <Pie
+            data={stockStatusData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={58}
+            outerRadius={88}
+            paddingAngle={4}
+          >
+            {stockStatusData.map((entry) => (
+              <Cell key={entry.name} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+    <div className="stock-status-legend">
+      {stockStatusData.map((entry) => (
+        <div key={entry.name}>
+          <span style={{ background: entry.color }} />
+          <strong>{entry.name}</strong>
+          <b>{entry.value}</b>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section className="dashboard-low-stock">
+  <div className="dashboard-heading">
+    <small>INVENTORY ALERTS</small>
+    <h2>Low Stock Alerts</h2>
+    <p>Products that may need replenishment.</p>
+  </div>
+  <div className="low-stock-list">
+    {products.filter((p: any) => Number(p.stock) < 5).length === 0 ? (
+      <p className="dashboard-empty">All products have sufficient stock.</p>
+    ) : products
+      .filter((p: any) => Number(p.stock) < 5)
+      .slice(0, 8)
+      .map((p: any) => (
+        <div className="low-stock-item" key={p.id}>
+          <strong>{p.name}</strong>
+          <span>{Number(p.stock) <= 0 ? 'Out of Stock' : 'Low Stock'}</span>
+          <b>{p.stock} {p.unit || 'units'}</b>
+        </div>
+      ))}
+  </div>
+</section>
+
+<section className="dashboard-quick-actions">
+  <div className="dashboard-heading">
+    <small>SHORTCUTS</small>
+    <h2>Quick Actions</h2>
+    <p>Access frequently used business operations.</p>
+  </div>
+  <div className="quick-actions-grid">
+    {[
+      ['New Sale', 'Sales'],
+      ['Add Purchase', 'Purchases'],
+      ['Add Customer', 'Customers'],
+      ['Add Supplier', 'Suppliers'],
+      ['Record Expense', 'Expenses']
+    ].map(([label, section]) => (
+      <button key={label} onClick={() => setActive(section)}>
+        + {label}
+      </button>
+    ))}
+  </div>
 </section>
 
 <section className="dashboard-workspace">

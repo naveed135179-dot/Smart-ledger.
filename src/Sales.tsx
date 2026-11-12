@@ -1,3 +1,4 @@
+import { postJournal } from './accounting';
 import { useState, useRef } from 'react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 
@@ -113,7 +114,11 @@ function addToCart() {
       productId: matched.id,
       product: matched.name,
       price: unitPrice,
-      purchasePrice: Number(matched.purchase) || 0,
+      purchasePrice: (() => {
+        const purchaseRate = Number(matched.purchase) || 0;
+        const gstRate = Math.max(0, Number(matched.gstRate) || 0);
+        return Number((purchaseRate / (1 + gstRate / 100)).toFixed(2));
+      })(),
       quantity,
       hsn: matched.hsn || "",
       gstRate: Number(matched.gstRate) || 0
@@ -275,6 +280,20 @@ const updatedProducts = products.map((p: any) => {
     bills.push(savedBill)
     localStorage.setItem("smartledger-bills", JSON.stringify(bills))
 
+postJournal("Sales Invoice", finalBillNo, savedBill.date, "Sales invoice " + finalBillNo, [
+  { account: "Customer Receivables", debit: Number(savedBill.total) || 0, credit: 0 },
+  { account: "Sales Income", debit: 0, credit: Number(taxableValue) || 0 },
+  { account: "GST Payable", debit: 0, credit: Number(gstAmount) || 0 }
+]);
+
+if (totalCost > 0) {
+  postJournal("Cost of Goods Sold", finalBillNo, savedBill.date, "Stock cost for " + finalBillNo, [
+    { account: "Purchase / Cost of Goods", debit: totalCost, credit: 0 },
+    { account: "Inventory / Stock", debit: 0, credit: totalCost }
+  ]);
+}
+
+
     if (Number(paid) > 0) {
       const payments = JSON.parse(localStorage.getItem("smartledger-payments") || "[]")
       payments.push({
@@ -289,6 +308,12 @@ const updatedProducts = products.map((p: any) => {
         reference: "Sales invoice"
       })
       localStorage.setItem("smartledger-payments", JSON.stringify(payments))
+
+postJournal("Customer Receipt", finalBillNo + "-receipt", savedBill.date, "Receipt against " + finalBillNo, [
+  { account: "Cash in Hand", debit: Number(paid), credit: 0 },
+  { account: "Customer Receivables", debit: 0, credit: Number(paid) }
+]);
+
     }
 
     localStorage.setItem("smartledger-batches", JSON.stringify(updatedBatches));

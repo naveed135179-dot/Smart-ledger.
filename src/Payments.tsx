@@ -1,3 +1,4 @@
+import { postJournal } from './accounting';
 import { useState } from 'react'
 
 type Payment = {
@@ -52,7 +53,31 @@ export default function Payments() {
     }
 
     const updated = [...payments, entry]
-    localStorage.setItem('smartledger-payments', JSON.stringify(updated))
+    
+const paymentAccount = method === "Cash" ? "Cash in Hand" : "Bank Account";
+const paymentAccountLines = type === "Customer Receipt"
+  ? [
+      { account: paymentAccount, debit: Number(amount), credit: 0 },
+      { account: "Customer Receivables", debit: 0, credit: Number(amount) }
+    ]
+  : [
+      { account: "Supplier Payables", debit: Number(amount), credit: 0 },
+      { account: paymentAccount, debit: 0, credit: Number(amount) }
+    ];
+
+const journalPosted = postJournal(
+  type,
+  String(entry.id),
+  date,
+  (type === "Customer Receipt" ? "Receipt from " : "Payment to ") + party,
+  paymentAccountLines
+);
+if (!journalPosted) {
+  alert('Payment not saved: accounting entry failed.');
+  return;
+}
+
+localStorage.setItem('smartledger-payments', JSON.stringify(updated))
     setPayments(updated)
 
     setParty('')

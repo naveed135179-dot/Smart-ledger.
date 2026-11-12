@@ -118,7 +118,7 @@ export default function GodownTransfers() {
   );
 
   return (
-    <div className="products-card">
+    <div className="godowntransfers-card">
       <h1>Godown Transfers</h1>
       <p>Move inventory between storage locations.</p>
 

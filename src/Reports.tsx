@@ -1,3 +1,4 @@
+import { readJournal } from './accounting';
 import React, { useState } from 'react';
 
 const money = (v: any) => '₹' + Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -61,6 +62,29 @@ export default function Reports() {
   const missingCost = S.filter((x: any) => costOf(x) === undefined).length;
   const gross = salesTotal - knownCost;
   const net = gross - expenseTotal;
+
+const journalEntries = readJournal().filter((entry: any) => inRange(entry));
+
+const accountTotal = (accountName: string, side: 'debit' | 'credit') =>
+  journalEntries.reduce((sum: number, entry: any) =>
+    sum + entry.lines
+      .filter((line: any) => line.account === accountName)
+      .reduce((value: number, line: any) => value + (Number(line[side]) || 0), 0)
+  , 0);
+
+const pnlSales = accountTotal('Sales Income', 'credit') - accountTotal('Sales Income', 'debit');
+const pnlCost = accountTotal('Purchase / Cost of Goods', 'debit') - accountTotal('Purchase / Cost of Goods', 'credit');
+const pnlExpenses = accountTotal('Shop Expenses', 'debit') - accountTotal('Shop Expenses', 'credit');
+const pnlGross = pnlSales - pnlCost;
+const pnlNet = pnlGross - pnlExpenses;
+const pnlRows = [
+  ['Sales Revenue (excluding GST)', money(pnlSales)],
+  ['Cost of Goods Sold', money(pnlCost)],
+  ['Gross Profit', money(pnlGross)],
+  ['Operating Expenses', money(pnlExpenses)],
+  ['Net Profit', money(pnlNet)]
+];
+
 
   const filtered = (rows: any[]) => rows.filter(x => JSON.stringify(x).toLowerCase().includes(search.toLowerCase()));
   const table = (headers: string[], rows: any[][]) => (
@@ -380,7 +404,7 @@ sections.forEach(([name, rows]) => {
         {tab === 'Product Profit' && table(['Product', 'Qty Sold', 'Sales Revenue', 'Cost of Goods', 'Gross Profit'], productRows)}
         {tab === 'Expense Report' && table(['Date', 'Category', 'Description', 'Amount'], expenseRows)}
         {tab === 'Payments' && table(['Date', 'Type', 'Party', 'Method', 'Reference', 'Amount'], paymentRows)}
-        {tab === 'Profit & Loss' && table(['Particulars', 'Amount'], [['Sales Revenue', money(salesTotal)], ['Cost of Goods Sold', money(knownCost)], ['Gross Profit', money(gross)], ['Operating Expenses', money(expenseTotal)], ['Net Profit', money(net)], ['Sales with missing cost', missingCost]])}
+        {tab === 'Profit & Loss' && table(['Particulars', 'Amount'], pnlRows)}
       </div>}
       <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: 18 }}>SmartLedger Business Reports</div>
     </div>
