@@ -1,10 +1,13 @@
 apply plugin: 'com.android.application'
 
-def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("keystore.properties")
-keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+def keystoreProperties = new Properties()
 
-
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream {
+        keystoreProperties.load(it)
+    }
+}
 android {
     namespace = "com.smartledger.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -22,6 +25,7 @@ android {
         }
     }
     signingConfigs {
+    if (keystorePropertiesFile.exists()) {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
@@ -29,11 +33,14 @@ android {
             storePassword keystoreProperties['storePassword']
         }
     }
+    }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            minifyEnabled false
+            if (keystorePropertiesFile.exists()) {
+    signingConfig signingConfigs.release
+                minifyEnabled false
+            }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
